@@ -33,10 +33,9 @@ vector<vector<vector<int>>> TETROMINOES = {
 vector<vector<int>> board(HEIGHT, vector<int>(WIDTH, 0));
 
 int currentPiece = 0; // Index of the current piece
-int pieceX = WIDTH / 2 - 1, pieceY = 0, rotation = 0; // Current piece position and rotation
+int pieceX = WIDTH / 2 - 1, pieceY = 0, rotation = 0, fallCounter = 0; // Current piece position and rotation, falling velocity timer
 bool gameOver = false;
 
-int fallCounter = 0;       // Counter to slow down piece falling
 const int fallSpeed = 10;  // How many iterations before the piece moves down
 
 // Function to clear the terminal screen
@@ -67,13 +66,9 @@ bool isCollision(int x, int y, int r) {
     vector<vector<int>> rotatedShape = shape;
 
     // Apply the rotation to the shape based on the current rotation state
-    if (r == 1) {
-        rotatedShape = rotateShape(shape); // 90 degrees
-    } else if (r == 2) {
-        rotatedShape = rotateShape(rotateShape(shape)); // 180 degrees
-    } else if (r == 3) {
-        rotatedShape = rotateShape(rotateShape(rotateShape(shape))); // 270 degrees
-    }
+    if (r == 1) { rotatedShape = rotateShape(shape); } // 90 degrees
+    else if (r == 2) { rotatedShape = rotateShape(rotateShape(shape)); } // 180 degrees
+    else if (r == 3) { rotatedShape = rotateShape(rotateShape(rotateShape(shape))); } // 270 degrees
 
     // Check if the rotated shape collides with the board
     for (int i = 0; i < rotatedShape.size(); i++) {
@@ -98,23 +93,8 @@ void rotatePiece() {
     // Increment the rotation value (0-3)
     rotation = (rotation + 1) % 4;
 
-    // Get the current piece shape
-    vector<vector<int>> newShape = TETROMINOES[currentPiece];
-
-    // Create a new rotated shape matrix
-    vector<vector<int>> rotatedShape(newShape[0].size(), vector<int>(newShape.size()));
-
-    // Transpose and reverse each row (rotate)
-    for (int i = 0; i < newShape.size(); i++) {
-        for (int j = 0; j < newShape[i].size(); j++) {
-            rotatedShape[j][newShape.size() - 1 - i] = newShape[i][j]; // Transpose and reverse
-        }
-    }
-
     // Check if the rotated piece collides with the board
-    if (!isCollision(pieceX, pieceY, rotation)) {
-        TETROMINOES[currentPiece] = rotatedShape; // Apply the rotation if it's valid
-    } else {
+    if (isCollision(pieceX, pieceY, rotation)) {
         // Revert to the original rotation if there's a collision
         rotation = originalRotation;
     }
@@ -122,8 +102,6 @@ void rotatePiece() {
 
 // Render the game board to the terminal
 void render() {
-    clearScreen();
-
     // Temporary copy of the board to overlay the active piece
     vector<vector<int>> tempBoard = board;
 
@@ -135,11 +113,11 @@ void render() {
 
     // Perform the 90-degree rotation (transpose and reverse rows) based on rotation state
     if (rotation == 1) {  // 90 degrees rotation
-        rotatedShape = rotateShape(shape);
+        rotatedShape = rotateShape(rotatedShape);
     } else if (rotation == 2) {  // 180 degrees rotation
-        rotatedShape = rotateShape(rotateShape(shape)); // Rotate 90 twice
+        rotatedShape = rotateShape(rotateShape(rotatedShape)); // Rotate 90 twice
     } else if (rotation == 3) {  // 270 degrees rotation
-        rotatedShape = rotateShape(rotateShape(rotateShape(shape))); // Rotate 90 three times
+        rotatedShape = rotateShape(rotateShape(rotateShape(rotatedShape))); // Rotate 90 three times
     }
 
     // Overlay the rotated piece on the temporary board
@@ -172,10 +150,21 @@ void render() {
 
 // Lock the piece into the board and preserve its rotation state
 void lockPiece() {
-    const auto& shape = TETROMINOES[currentPiece];
-    for (int i = 0; i < shape.size(); i++) {
-        for (int j = 0; j < shape[i].size(); j++) {
-            if (shape[i][j]) {
+    // Get the rotated version of the current piece
+    vector<vector<int>> rotatedShape = TETROMINOES[currentPiece];
+
+    if (rotation == 1) {  // 90 degrees rotation
+        rotatedShape = rotateShape(rotatedShape);
+    } else if (rotation == 2) {  // 180 degrees rotation
+        rotatedShape = rotateShape(rotateShape(rotatedShape)); // Rotate 90 twice
+    } else if (rotation == 3) {  // 270 degrees rotation
+        rotatedShape = rotateShape(rotateShape(rotateShape(rotatedShape))); // Rotate 90 three times
+    }
+
+    // Lock the rotated shape into the board
+    for (int i = 0; i < rotatedShape.size(); i++) {
+        for (int j = 0; j < rotatedShape[i].size(); j++) {
+            if (rotatedShape[i][j]) {
                 board[pieceY + i][pieceX + j] = currentPiece + 1;  // Place the block on the board
             }
         }
@@ -259,9 +248,10 @@ int main() {
     spawnPiece();
 
     while (!gameOver) {
-        render();      // Render the board and active piece
+        clearScreen();
         handleInput(); // Process user input
         update();      // Update the game state
+        render();      // Render the board and active piece
         this_thread::sleep_for(chrono::milliseconds(50)); // Add delay for the loop
     }
 
