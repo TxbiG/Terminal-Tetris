@@ -2,12 +2,6 @@
 
 ## Build
 ```
-mkdir build
-cd build
-cmake ..
-
-cmake --build . --config Debug
-# or
-cmake --build . --config Release
-
+cmake -S . -B build
+cmake --build build --config Release
 ``` 
